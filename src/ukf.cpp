@@ -17,7 +17,7 @@ UKF::UKF() {
   use_laser_ = true;
 
   // if this is false, radar measurements will be ignored (except during init)
-  use_radar_ = true;
+  use_radar_ = false;
 
   // initial state vector
   x_ = VectorXd(5);
@@ -95,7 +95,7 @@ void UKF::ProcessMeasurement(MeasurementPackage measurement_pack) {
          */
         // first measurement
         // velocity, yaw and yaw rate initial value
-        x_(2) = 0; //
+        x_(2) = 1; //
         x_(3) = 0; // Assuming straight heading
         x_(4) = 0; // this corresponds to  6 deg/sec
         if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
@@ -181,6 +181,7 @@ void UKF::Prediction(double delta_t) {
     MatrixXd Xsig_aug = MatrixXd(n_aug_, 2 * n_aug_ + 1);
     // Create augmented state vector
     Eigen::VectorXd x_aug(7);
+    cout << "x_ before generation = " << endl << x_ << endl;
     x_aug.head(5) = x_;
     x_aug(5) = 0;
     x_aug(6) = 0;
@@ -256,23 +257,40 @@ void UKF::Prediction(double delta_t) {
     
     ///* PREDICT MEAN AND COVARIANCE
     Xsig_pred_ = Xsig_pred;
+    //create vector for predicted state
+    VectorXd x = VectorXd(n_x_);
     
+    //create covariance matrix for prediction
+    MatrixXd P = MatrixXd(n_x_, n_x_);
+    
+    
+    
+    //predicted state mean
+    x.fill(0.0);
     for (int i = 0; i < 2 * n_aug_ + 1; i++) {  //iterate over sigma points
-        x_ = x_+ weights_(i) * Xsig_pred_.col(i);
+        x = x+ weights_(i) * Xsig_pred_.col(i);
     }
-    cout << "Predicted mean = " << endl << x_ << endl;
+    //predicted state covariance matrix
+    P.fill(0.0);
+
+    for (int i = 0; i < 2 * n_aug_ + 1; i++) {  //iterate over sigma points
+        x = x+ weights_(i) * Xsig_pred_.col(i);
+    }
     //predicted state covariance matrix
     for (int i = 0; i < 2 * n_aug_ + 1; i++) {  //iterate over sigma points
         
         // state difference
-        VectorXd x_diff = Xsig_pred_.col(i) - x_;
+        VectorXd x_diff = Xsig_pred_.col(i) - x;
         //angle normalization
         while (x_diff(3)> M_PI) x_diff(3)-=2.*M_PI;
         while (x_diff(3)<-M_PI) x_diff(3)+=2.*M_PI;
         
-        P_ = P_ + weights_(i) * x_diff * x_diff.transpose() ;
+        P = P + weights_(i) * x_diff * x_diff.transpose() ;
     }
-    
+    // Update x_ and P_
+    x_ = x;
+    P_ = P;
+    cout << "Predicted mean = " << endl << x_ << endl;
     cout << "Predicted Covariance = " << endl <<  P_ << endl;
     
 }
