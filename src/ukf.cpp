@@ -179,7 +179,6 @@ void UKF::Prediction(double delta_t) {
   */
     ///* GENERATE SIGMA POINTS
     MatrixXd Xsig_aug = MatrixXd(n_aug_, 2 * n_aug_ + 1);
-    Xsig_aug.fill(0.0);
     // Create augmented state vector
     Eigen::VectorXd x_aug(7);
     x_aug.head(5) = x_;
@@ -207,7 +206,9 @@ void UKF::Prediction(double delta_t) {
     
     ///* PREDICT SIGMA POINTS
     //predict sigma points
-    Xsig_pred_.fill(0.0);
+    //create matrix with predicted sigma points as columns
+    MatrixXd Xsig_pred = MatrixXd(n_x_, 2 * n_aug_ + 1);
+
     for (int i = 0; i< 2*n_aug_+1; i++)
     {
         //extract values for better readability
@@ -245,21 +246,21 @@ void UKF::Prediction(double delta_t) {
         yawd_p = yawd_p + nu_yawdd*delta_t;
         
         //write predicted sigma point into right column
-        Xsig_pred_(0,i) = px_p;
-        Xsig_pred_(1,i) = py_p;
-        Xsig_pred_(2,i) = v_p;
-        Xsig_pred_(3,i) = yaw_p;
-        Xsig_pred_(4,i) = yawd_p;
+        Xsig_pred(0,i) = px_p;
+        Xsig_pred(1,i) = py_p;
+        Xsig_pred(2,i) = v_p;
+        Xsig_pred(3,i) = yaw_p;
+        Xsig_pred(4,i) = yawd_p;
     }
     ///* END OF PREDICT SIGMA POINTS
     
     ///* PREDICT MEAN AND COVARIANCE
-    
+    Xsig_pred_ = Xsig_pred;
     
     for (int i = 0; i < 2 * n_aug_ + 1; i++) {  //iterate over sigma points
         x_ = x_+ weights_(i) * Xsig_pred_.col(i);
     }
-    cout << "Predicted mean = " << x_ << endl;
+    cout << "Predicted mean = " << endl << x_ << endl;
     //predicted state covariance matrix
     for (int i = 0; i < 2 * n_aug_ + 1; i++) {  //iterate over sigma points
         
@@ -272,7 +273,7 @@ void UKF::Prediction(double delta_t) {
         P_ = P_ + weights_(i) * x_diff * x_diff.transpose() ;
     }
     
-    cout << "Predicted Covariance = " << P_ << endl;
+    cout << "Predicted Covariance = " << endl <<  P_ << endl;
     
 }
 
@@ -294,7 +295,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
     
     //create matrix for sigma points in measurement space
     MatrixXd Zsig = MatrixXd(n_z, 2 * n_aug_ + 1);
-    
+    Zsig.fill(0.0);
     //transform sigma points into measurement space
     for (int i = 0; i < 2 * n_aug_ + 1; i++) {  //2n+1 simga points
         
@@ -363,6 +364,10 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
     //residual
     VectorXd z_diff = z - z_pred;
     
+    //angle normalization
+    while (z_diff(1)> M_PI) z_diff(1)-=2.*M_PI;
+    while (z_diff(1)<-M_PI) z_diff(1)+=2.*M_PI;
+
     
     //update state mean and covariance matrix
     x_ = x_ + K * z_diff;
@@ -393,7 +398,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
     
     //create matrix for sigma points in measurement space
     MatrixXd Zsig = MatrixXd(n_z, 2 * n_aug_ + 1);
-    
+    Zsig.fill(0.0);
     //transform sigma points into measurement space
     for (int i = 0; i < 2 * n_aug_ + 1; i++) {  //2n+1 simga points
         
